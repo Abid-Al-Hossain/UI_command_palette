@@ -1,24 +1,116 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { CommandPaletteState } from "../types";
+import { getCommandPaletteModel } from "../_utils/commandPaletteModel";
 
 function shell(state: CommandPaletteState): CSSProperties {
-  return { width: state.width, minHeight: state.height, padding: state.padding, gap: state.gap, borderRadius: state.radius, border: `${state.borderWidth}px solid ${state.border}`, boxShadow: `0 ${Math.round(state.shadow / 3)}px ${state.shadow}px rgba(0,0,0,.28)`, background: state.background, color: state.foreground, fontFamily: state.fontFamily, opacity: state.disabled ? 0.55 : 1 };
+  return {
+    width: state.width,
+    minHeight: state.height,
+    padding: state.padding,
+    gap: state.gap,
+    borderRadius: state.radius,
+    border: `${state.borderWidth}px solid ${state.border}`,
+    boxShadow: `0 ${Math.round(state.shadow / 3)}px ${state.shadow}px rgba(0,0,0,.28)`,
+    background: state.background,
+    color: state.foreground,
+    fontFamily: state.fontFamily,
+    opacity: state.disabled ? 0.55 : 1,
+  };
 }
 
 export default function LivePreview({ state }: { state: CommandPaletteState }) {
-  const model = state as Record<string, unknown>;
-  const numberValue = (key: string, fallback: number) => typeof model[key] === "number" ? model[key] : fallback;
-  const stringValue = (key: string, fallback: string) => typeof model[key] === "string" ? model[key] : fallback;
-  const boolValue = (key: string) => typeof model[key] === "boolean" ? model[key] : false;
-  const count = numberValue("itemCount", numberValue("rowCount", numberValue("slideCount", numberValue("imageCount", numberValue("filterCount", numberValue("controlCount", 5))))));
-  const items = Array.from({ length: count }, (_, index) => index + 1);
-  const badge = (text: string) => <span className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: state.border, color: state.accent }}>{text}</span>;
-  const panel = shell(state);
-  if ("chartType" in model) return <section role="img" aria-label={state.ariaLabel} style={panel} className="grid content-center"><h3 style={{ fontSize: state.titleSize }}>{state.title}</h3><div className="flex items-end gap-3">{items.map((item) => <div key={item} className="w-10 rounded-t-xl" style={{ height: 36 + item * 18, background: state.accent }} />)}</div></section>;
-  if ("src" in model && ("showTimeline" in model || "showCaptions" in model)) return <section role={state.role} aria-label={state.ariaLabel} style={panel} className="grid content-center"><h3>{state.title}</h3>{"showTimeline" in model ? <audio controls muted={boolValue("muted")} loop={boolValue("loop")} preload={stringValue("preload", "metadata")} className="w-full" /> : <video controls muted={boolValue("muted")} loop={boolValue("loop")} preload={stringValue("preload", "metadata")} poster={stringValue("poster", "")} className="w-full rounded-xl bg-black/40" />}</section>;
-  if (state.role === "dialog") return <div className="grid place-items-center"><section role="dialog" aria-label={state.ariaLabel} style={panel} className="grid"><h3 style={{ fontSize: state.titleSize }}>{state.title}</h3><p style={{ color: stringValue("muted", "#94a3b8") }}>{state.description}</p><div className="flex gap-2"><button type="button" className="rounded-xl px-4 py-2" style={{ background: state.accent, color: "#020617" }}>Action</button><button type="button" className="rounded-xl border px-4 py-2" style={{ borderColor: state.border }}>Cancel</button></div></section></div>;
-  if (state.role === "table") return <table role="table" aria-label={state.ariaLabel} style={panel}><caption>{stringValue("caption", state.title)}</caption><tbody>{items.map((item) => <tr key={item}><th className="p-2 text-left">Row {item}</th><td className="p-2">{state.label}</td></tr>)}</tbody></table>;
-  return <section id={state.id} role={state.role} aria-label={state.ariaLabel} tabIndex={state.tabIndex} style={panel} className="grid content-center"><h3 style={{ fontSize: state.titleSize, fontWeight: state.fontWeight }}>{state.title}</h3><p style={{ color: stringValue("muted", "#94a3b8"), fontSize: state.bodySize }}>{state.description}</p><div className="flex flex-wrap gap-2">{items.map((item) => badge(`${state.label} ${item}`))}</div><p className="text-xs" style={{ color: stringValue("muted", "#94a3b8") }}>{state.helper} · {stringValue("previewState", "default")}</p></section>;
+  const model = getCommandPaletteModel(state);
+  const [isOpen, setIsOpen] = useState(model.isInitiallyOpen);
+  const [activeIndex, setActiveIndex] = useState(model.activeIndex);
+  const [query, setQuery] = useState(model.query);
+
+  useEffect(() => {
+    setIsOpen(model.isInitiallyOpen);
+    setActiveIndex(model.activeIndex);
+    setQuery(model.query);
+  }, [model.activeIndex, model.isInitiallyOpen, model.query, state.id, state.itemCount, state.groupCount]);
+
+  const activeDescendant = isOpen && activeIndex >= 0 ? `${model.baseId}-option-${activeIndex}` : undefined;
+  const describedBy = model.isError ? `${model.helperId} ${model.errorId}` : model.helperId;
+
+  const moveActive = (delta: number) => {
+    if (!model.totalOptions) return;
+    setActiveIndex((current) => (current + delta + model.totalOptions) % model.totalOptions);
+  };
+
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setIsOpen(true);
+      moveActive(1);
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsOpen(true);
+      moveActive(-1);
+    }
+
+    if (event.key === "Enter" && isOpen && activeIndex >= 0) {
+      event.preventDefault();
+      setIsOpen(false);
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="grid place-items-center">
+      <section id={state.id} role="dialog" aria-modal="false" aria-labelledby={model.labelId} aria-describedby={describedBy} style={shell(state)} className="grid">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 id={model.labelId} style={{ fontSize: state.titleSize, fontWeight: state.fontWeight }}>{state.title}</h3>
+            <p className="mt-1" style={{ color: state.muted, fontSize: state.bodySize }}>{state.description}</p>
+          </div>
+          <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: state.border, color: state.accent }}>
+            {isOpen ? "Open" : "Closed"}
+          </button>
+        </div>
+
+        <label className="grid gap-2 text-sm font-semibold" htmlFor={model.inputId}>
+          <span>{model.inputLabel}</span>
+          <input id={model.inputId} role="combobox" type="search" disabled={state.disabled} value={query} placeholder={model.placeholder} aria-expanded={isOpen} aria-controls={model.listboxId} aria-activedescendant={activeDescendant} aria-autocomplete="list" aria-describedby={describedBy} onFocus={() => setIsOpen(true)} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleInputKeyDown} className="rounded-2xl border px-4 py-3 outline-none transition" style={{ borderColor: state.previewState === "focus" ? state.accent : state.border, background: "rgba(255,255,255,.06)", color: state.foreground }} />
+        </label>
+
+        <p id={model.helperId} className="text-xs" style={{ color: state.muted }}>{state.helper} - {model.resultLabel}</p>
+        {model.isError && <p id={model.errorId} role="alert" className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: state.border, color: state.accent }}>{model.errorMessage}</p>}
+
+        {isOpen && (
+          <div id={model.listboxId} role="listbox" aria-label={model.inputLabel} className="grid gap-3 rounded-3xl border p-3" style={{ borderColor: state.border, background: "rgba(2,6,23,.18)" }}>
+            {model.isLoading && <div role="status" className="rounded-2xl px-4 py-3 text-sm" style={{ color: state.muted }}>{model.loadingMessage}</div>}
+            {!model.isLoading && model.isEmpty && <div role="status" className="rounded-2xl px-4 py-3 text-sm" style={{ color: state.muted }}>{model.emptyMessage}</div>}
+            {!model.isLoading && !model.isEmpty && model.groups.map((group) => (
+              <div key={group.id} role="group" aria-label={group.label} className="grid gap-2">
+                <p className="px-2 text-xs uppercase tracking-[0.18em]" style={{ color: state.muted }}>{group.label}</p>
+                {group.options.map((option) => {
+                  const optionIndex = Number(option.id.split("-").at(-1));
+                  const selected = optionIndex === activeIndex || state.previewState === "selected";
+
+                  return (
+                    <div key={option.id} id={option.id} role="option" aria-selected={selected} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: selected ? state.accent : "transparent", background: selected ? "rgba(255,255,255,.1)" : "transparent" }}>
+                      <span>
+                        <strong>{option.label}</strong>
+                        <small className="block" style={{ color: state.muted }}>{option.helper}</small>
+                      </span>
+                      {state.showShortcuts && <kbd className="rounded-lg border px-2 py-1 text-xs" style={{ borderColor: state.border, color: state.muted }}>{option.shortcut}</kbd>}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }

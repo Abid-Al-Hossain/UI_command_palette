@@ -5,6 +5,13 @@ export type CommandPaletteState = {
   description: string;
   label: string;
   helper: string;
+  inputLabel?: string;
+  placeholder?: string;
+  query?: string;
+  emptyMessage?: string;
+  loadingMessage?: string;
+  errorMessage?: string;
+  resultLabel?: string;
   id: string;
   ariaLabel: string;
   tabIndex: number;
@@ -27,7 +34,6 @@ export type CommandPaletteState = {
   previewState: "default" | "hover" | "focus" | "active" | "open" | "closed" | "selected" | "loading" | "empty" | "error" | "success";
   motion: boolean;
   disabled: boolean;
-  role: "region" | "group" | "status" | "alert" | "dialog" | "menu" | "menubar" | "navigation" | "list" | "tree" | "table" | "tablist" | "form" | "textbox" | "img" | "application";
   groupCount: number;
   itemCount: number;
   highlightedIndex: number;

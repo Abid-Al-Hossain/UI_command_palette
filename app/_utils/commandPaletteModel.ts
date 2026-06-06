@@ -1,0 +1,113 @@
+import type { CommandPaletteState } from "../types";
+
+export type CommandOption = {
+  id: string;
+  label: string;
+  helper: string;
+  shortcut: string;
+};
+
+export type CommandGroup = {
+  id: string;
+  label: string;
+  options: CommandOption[];
+};
+
+export type CommandPaletteModel = {
+  baseId: string;
+  labelId: string;
+  inputId: string;
+  listboxId: string;
+  helperId: string;
+  errorId: string;
+  triggerId: string;
+  inputLabel: string;
+  placeholder: string;
+  query: string;
+  emptyMessage: string;
+  loadingMessage: string;
+  errorMessage: string;
+  resultLabel: string;
+  isInitiallyOpen: boolean;
+  isLoading: boolean;
+  isEmpty: boolean;
+  isError: boolean;
+  activeIndex: number;
+  activeDescendant: string | undefined;
+  totalOptions: number;
+  groups: CommandGroup[];
+};
+
+const GROUP_LABELS = ["Navigation", "Actions", "Records", "Settings", "Support", "Recent", "Admin", "Shortcuts"];
+const COMMAND_HELPERS = [
+  "Open matching workspace",
+  "Run primary action",
+  "Jump to recent result",
+  "Create a filtered view",
+  "Review team workflow",
+  "Pin this command",
+  "Open detail panel",
+  "Copy command link",
+];
+const SHORTCUTS = ["Ctrl+K", "G D", "Shift+Ctrl+P", "Ctrl+Enter", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Esc"];
+
+function cleanId(value: string) {
+  return value.trim().replace(/[^a-zA-Z0-9_-]+/g, "-") || "command-palette";
+}
+
+function textValue(value: string | undefined, fallback: string) {
+  return value && value.trim() ? value : fallback;
+}
+
+export function getCommandPaletteModel(state: CommandPaletteState): CommandPaletteModel {
+  const id = cleanId(state.id);
+  const totalOptions = state.emptyState || state.previewState === "empty" ? 0 : Math.max(0, Math.floor(state.itemCount));
+  const groupCount = Math.max(1, Math.min(Math.floor(state.groupCount), Math.max(totalOptions, 1)));
+  const activeIndex = totalOptions ? Math.max(0, Math.min(Math.floor(state.highlightedIndex), totalOptions - 1)) : -1;
+  const isLoading = state.previewState === "loading";
+  const isError = state.previewState === "error";
+  const isEmpty = totalOptions === 0;
+  const isInitiallyOpen = state.previewState !== "closed";
+  const label = textValue(state.label, "Command");
+  const groups = Array.from({ length: groupCount }, (_, groupIndex) => {
+    const options = Array.from({ length: totalOptions }, (_, index) => index)
+      .filter((index) => index % groupCount === groupIndex)
+      .map((index) => ({
+        id: `${id}-option-${index}`,
+        label: `${label} ${index + 1}`,
+        helper: COMMAND_HELPERS[index % COMMAND_HELPERS.length],
+        shortcut: SHORTCUTS[index % SHORTCUTS.length],
+      }));
+
+    return {
+      id: `${id}-group-${groupIndex}`,
+      label: GROUP_LABELS[groupIndex % GROUP_LABELS.length],
+      options,
+    };
+  }).filter((group) => group.options.length > 0);
+
+  return {
+    baseId: id,
+    labelId: `${id}-label`,
+    inputId: `${id}-input`,
+    listboxId: `${id}-listbox`,
+    helperId: `${id}-helper`,
+    errorId: `${id}-error`,
+    triggerId: `${id}-trigger`,
+    inputLabel: textValue(state.inputLabel, "Search commands"),
+    placeholder: textValue(state.placeholder, "Type a command or search route..."),
+    query: state.query ?? "",
+    emptyMessage: textValue(state.emptyMessage, "No commands match the current search."),
+    loadingMessage: textValue(state.loadingMessage, "Loading command results..."),
+    errorMessage: textValue(state.errorMessage, "Commands could not be loaded."),
+    resultLabel: textValue(state.resultLabel, `${totalOptions} command${totalOptions === 1 ? "" : "s"} available`),
+    isInitiallyOpen,
+    isLoading,
+    isEmpty,
+    isError,
+    activeIndex,
+    activeDescendant: isInitiallyOpen && !isLoading && !isError && !isEmpty ? `${id}-option-${activeIndex}` : undefined,
+    totalOptions,
+    groups,
+  };
+}
