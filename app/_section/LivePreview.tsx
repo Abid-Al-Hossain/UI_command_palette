@@ -2,7 +2,26 @@
 
 import { useEffect, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { CommandPaletteState } from "../types";
+import { SYSTEM_FONTS } from "@/components/shared/typography/fontConstants";
 import { getCommandPaletteModel } from "../_utils/commandPaletteModel";
+
+function resolveFont(state: { fontBucket: "system" | "google"; googleFontFamily: string; systemFontIdx: number }): string {
+  return state.fontBucket === "google"
+    ? `"${state.googleFontFamily}", sans-serif`
+    : (SYSTEM_FONTS[state.systemFontIdx]?.css ?? "inherit");
+}
+
+function buildShadow(state: { shadowEnabled: boolean; shadowX: number; shadowY: number; shadowBlur: number; shadowSpread: number; shadowColor: string; shadowOpacity: number }): string {
+  if (!state.shadowEnabled) return "none";
+  const hex = Math.round(state.shadowOpacity * 255).toString(16).padStart(2, "0");
+  return `${state.shadowX}px ${state.shadowY}px ${state.shadowBlur}px ${state.shadowSpread}px ${state.shadowColor}${hex}`;
+}
+
+function buildRadius(state: { radiusLinked: boolean; radius: number; radiusTL: number; radiusTR: number; radiusBR: number; radiusBL: number }): string {
+  return state.radiusLinked
+    ? `${state.radius}px`
+    : `${state.radiusTL}px ${state.radiusTR}px ${state.radiusBR}px ${state.radiusBL}px`;
+}
 
 function shell(state: CommandPaletteState): CSSProperties {
   return {
@@ -10,12 +29,17 @@ function shell(state: CommandPaletteState): CSSProperties {
     minHeight: state.height,
     padding: state.padding,
     gap: state.gap,
-    borderRadius: state.radius,
-    border: `${state.borderWidth}px solid ${state.border}`,
-    boxShadow: `0 ${Math.round(state.shadow / 3)}px ${state.shadow}px rgba(0,0,0,.28)`,
+    borderRadius: buildRadius(state),
+    border: `${state.borderWidth}px ${state.borderStyle} ${state.border}`,
+    boxShadow: buildShadow(state),
     background: state.background,
     color: state.foreground,
-    fontFamily: state.fontFamily,
+    fontFamily: resolveFont(state),
+    fontStyle: state.fontStyle,
+    textTransform: state.textTransform,
+    textDecoration: state.textDecoration,
+    letterSpacing: `${state.letterSpacing}${state.letterSpacingUnit}`,
+    lineHeight: state.lineHeight,
     opacity: state.disabled ? 0.55 : 1,
   };
 }
@@ -72,7 +96,7 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
             <h3 id={model.labelId} style={{ fontSize: state.titleSize, fontWeight: state.fontWeight }}>{state.title}</h3>
             <p className="mt-1" style={{ color: state.muted, fontSize: state.bodySize }}>{state.description}</p>
           </div>
-          <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: state.border, color: state.accent, transition: state.motion ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
+          <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: state.border, color: state.accent, transition: state.transitionDuration > 0 ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
             {isOpen ? "Open" : "Closed"}
           </button>
         </div>
@@ -86,7 +110,7 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
         {model.isError && <p id={model.errorId} role="alert" className="rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: state.border, color: state.accent }}>{model.errorMessage}</p>}
 
         {isOpen && (
-          <div id={model.listboxId} role="listbox" aria-label={model.inputLabel} className="grid gap-3 rounded-3xl border p-3" style={{ borderColor: state.border, background: "rgba(2,6,23,.18)", transition: state.motion ? "opacity 0.2s ease" : "none" }}>
+          <div id={model.listboxId} role="listbox" aria-label={model.inputLabel} className="grid gap-3 rounded-3xl border p-3" style={{ borderColor: state.border, background: "rgba(2,6,23,.18)", transition: state.transitionDuration > 0 ? "opacity 0.2s ease" : "none" }}>
             {model.isLoading && <div role="status" className="rounded-2xl px-4 py-3 text-sm" style={{ color: state.muted }}>{model.loadingMessage}</div>}
             {!model.isLoading && model.isEmpty && <div role="status" className="rounded-2xl px-4 py-3 text-sm" style={{ color: state.muted }}>{model.emptyMessage}</div>}
             {!model.isLoading && !model.isEmpty && model.groups.map((group) => (
@@ -97,7 +121,7 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
                   const selected = optionIndex === activeIndex || state.previewState === "selected";
 
                   return (
-                    <div key={option.id} id={option.id} role="option" aria-selected={selected} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: selected ? state.accent : "transparent", background: selected ? "rgba(255,255,255,.1)" : "transparent", transition: state.motion ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
+                    <div key={option.id} id={option.id} role="option" aria-selected={selected} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: selected ? state.accent : "transparent", background: selected ? "rgba(255,255,255,.1)" : "transparent", transition: state.transitionDuration > 0 ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
                       <span>
                         <strong>{option.label}</strong>
                         <small className="block" style={{ color: state.muted }}>{option.helper}</small>
