@@ -30,9 +30,9 @@ function shell(state: CommandPaletteState): CSSProperties {
     padding: state.padding,
     gap: state.gap,
     borderRadius: buildRadius(state),
-    border: `${state.borderWidth}px ${state.borderStyle} ${state.border}`,
+    border: `${state.borderWidth}px ${state.borderStyle} ${state.disabled && state.disabledUseCustomColors ? state.disabledBorder : state.border}`,
     boxShadow: buildShadow(state),
-    background: state.background,
+    background: state.disabled && state.disabledUseCustomColors ? state.disabledBg : state.background,
     color: state.foreground,
     fontFamily: resolveFont(state),
     fontStyle: state.fontStyle,
@@ -40,7 +40,8 @@ function shell(state: CommandPaletteState): CSSProperties {
     textDecoration: state.textDecoration,
     letterSpacing: `${state.letterSpacing}${state.letterSpacingUnit}`,
     lineHeight: state.lineHeight,
-    opacity: state.disabled ? 0.55 : 1,
+    opacity: state.disabled ? state.disabledOpacity : 1,
+    cursor: state.disabled ? state.disabledCursor : undefined,
   };
 }
 

@@ -8,10 +8,12 @@ export function buildExportPayload(state: CommandPaletteState, fileName = "comma
 
 export function buildReactCode(state: CommandPaletteState) {
   const serializedState = JSON.stringify(state, null, 2);
-
   return `import * as React from "react";
 
 const state = ${serializedState};
+
+function resolveFont(s) { return s.fontBucket === "google" ? '"' + s.googleFontFamily + '", sans-serif' : "inherit"; }
+function buildShadow(s) { if (!s.shadowEnabled) return "none"; var hex = Math.round(s.shadowOpacity * 255).toString(16).padStart(2, "0"); return s.shadowX + "px " + s.shadowY + "px " + s.shadowBlur + "px " + s.shadowSpread + "px " + s.shadowColor + hex; }
 
 const GROUP_LABELS = ["Navigation", "Actions", "Records", "Settings", "Support", "Recent", "Admin", "Shortcuts"];
 const COMMAND_HELPERS = [
@@ -93,12 +95,13 @@ function getShellStyle(currentState) {
     padding: currentState.padding,
     gap: currentState.gap,
     borderRadius: currentState.radius,
-    border: currentState.borderWidth + "px solid " + currentState.border,
+    border: currentState.borderWidth + "px " + currentState.borderStyle + " " + (currentState.disabled && currentState.disabledUseCustomColors ? currentState.disabledBorder : currentState.border),
     boxShadow: "0 " + Math.round(currentState.shadow / 3) + "px " + currentState.shadow + "px rgba(0,0,0,.28)",
     background: currentState.background,
     color: currentState.foreground,
     fontFamily: currentState.fontFamily,
-    opacity: currentState.disabled ? 0.55 : 1,
+    opacity: currentState.disabled ? (currentState.disabledOpacity ?? 0.5) : 1,
+cursor: currentState.disabled ? currentState.disabledCursor : undefined,
     display: "grid",
   };
 }
@@ -148,7 +151,7 @@ export default function CommandPaletteComponent() {
             <h3 id={model.labelId} style={{ margin: 0, fontSize: state.titleSize, fontWeight: state.fontWeight }}>{state.title}</h3>
             <p style={{ margin: "4px 0 0", color: state.muted, fontSize: state.bodySize }}>{state.description}</p>
           </div>
-          <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} style={{ borderRadius: 999, border: "1px solid " + state.border, padding: "4px 12px", color: state.accent, background: "transparent", fontSize: 12, fontWeight: 700, transition: state.transitionDuration > 0 ? "$1" : "none" }}>
+          <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} style={{ borderRadius: 999, border: "1px solid " + state.border, padding: "4px 12px", color: state.accent, background: "transparent", fontSize: 12, fontWeight: 700, transition: state.transitionDuration > 0 ? "all " + state.transitionDuration + "ms " + state.transitionEasing : "none" }}>
             {isOpen ? "Open" : "Closed"}
           </button>
         </div>
@@ -162,7 +165,7 @@ export default function CommandPaletteComponent() {
         {model.isError && <p id={model.errorId} role="alert" style={{ margin: 0, border: "1px solid " + state.border, borderRadius: 18, padding: "12px 16px", color: state.accent }}>{model.errorMessage}</p>}
 
         {isOpen && (
-          <div id={model.listboxId} role="listbox" aria-label={model.inputLabel} style={{ display: "grid", gap: 12, border: "1px solid " + state.border, borderRadius: 24, padding: 12, background: "rgba(2,6,23,.18)", transition: state.transitionDuration > 0 ? "$1" : "none" }}>
+          <div id={model.listboxId} role="listbox" aria-label={model.inputLabel} style={{ display: "grid", gap: 12, border: "1px solid " + state.border, borderRadius: 24, padding: 12, background: "rgba(2,6,23,.18)", transition: state.transitionDuration > 0 ? "all " + state.transitionDuration + "ms " + state.transitionEasing : "none" }}>
             {model.isLoading && <div role="status" style={{ borderRadius: 18, padding: "12px 16px", color: state.muted }}>{model.loadingMessage}</div>}
             {!model.isLoading && model.isEmpty && <div role="status" style={{ borderRadius: 18, padding: "12px 16px", color: state.muted }}>{model.emptyMessage}</div>}
             {!model.isLoading && !model.isEmpty && model.groups.map((group) => (
@@ -173,7 +176,7 @@ export default function CommandPaletteComponent() {
                   const selected = optionIndex === activeIndex || state.previewState === "selected";
 
                   return (
-                    <div key={option.id} id={option.id} role="option" aria-selected={selected} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid " + (selected ? state.accent : "transparent"), borderRadius: 18, padding: "12px 16px", background: selected ? "rgba(255,255,255,.1)" : "transparent", transition: state.transitionDuration > 0 ? "$1" : "none" }}>
+                    <div key={option.id} id={option.id} role="option" aria-selected={selected} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid " + (selected ? state.accent : "transparent"), borderRadius: 18, padding: "12px 16px", background: selected ? "rgba(255,255,255,.1)" : "transparent", transition: state.transitionDuration > 0 ? "all " + state.transitionDuration + "ms " + state.transitionEasing : "none" }}>
                       <span>
                         <strong>{option.label}</strong>
                         <small style={{ display: "block", color: state.muted }}>{option.helper}</small>
