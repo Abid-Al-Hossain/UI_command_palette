@@ -16,13 +16,17 @@ export default function BehaviorSection({ state, update }: Props) {
         <Select label="Open mode" value={state.openMode} options={["single", "multiple", "manual", "controlled", "uncontrolled"]} onChange={(value) => update("openMode", value)} />
       </SectionCard>
       <SectionCard title="Display" subtitle="Command item display options.">
+      <div className="space-y-4">
         <Switch label="Show shortcuts" checked={state.showShortcuts} onChange={(value) => update("showShortcuts", value)} />
         <Switch label="Disabled" checked={state.disabled} onChange={(value) => update("disabled", value)} />
-      </SectionCard>
+      </div>
+    </SectionCard>
       <SectionCard title="Search" subtitle="Global open shortcut and search debounce timing.">
+      <div className="space-y-4">
         <Input label="Keyboard shortcut hint" value={state.keyboardShortcut} onChange={(value) => update("keyboardShortcut", value)} />
         <Slider label="Search debounce (ms)" value={state.searchDebounce} min={0} max={600} step={25} onChange={(value) => update("searchDebounce", value)} />
-      </SectionCard>
+      </div>
+    </SectionCard>
     </div>
   );
 }

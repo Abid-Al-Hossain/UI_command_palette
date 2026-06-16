@@ -10,6 +10,7 @@ type Props = { state: CommandPaletteState; update: <K extends keyof CommandPalet
 export default function ItemsSection({ state, update }: Props) {
   return (
     <SectionCard title="Items" subtitle="Items controls for native command generation.">
+      <div className="space-y-4">
       <Slider label="Item count" value={state.itemCount} min={1} max={14} step={1} onChange={(value) => update("itemCount", value)} />
       <Slider label="Max results" value={state.maxResults} min={1} max={20} step={1} onChange={(value) => update("maxResults", value)} />
       <Switch label="Group results" checked={state.groupsEnabled} onChange={(value) => update("groupsEnabled", value)} />
@@ -19,6 +20,7 @@ export default function ItemsSection({ state, update }: Props) {
           <Switch label="Show 'Recent' group first" checked={state.recentEnabled} onChange={(value) => update("recentEnabled", value)} />
         </>
       )}
+    </div>
     </SectionCard>
   );
 }

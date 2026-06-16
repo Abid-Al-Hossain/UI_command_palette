@@ -10,15 +10,19 @@ export default function ColorsSection({ state, update }: Props) {
   return (
     <div className="space-y-4">
       <SectionCard title="Colors" subtitle="Colors controls for native command generation.">
+      <div className="space-y-4">
         <ColorControl label="Accent" value={state.accent} onChange={(value) => update("accent", value)} />
         <ColorControl label="Background" value={state.background} onChange={(value) => update("background", value)} />
         <ColorControl label="Foreground" value={state.foreground} onChange={(value) => update("foreground", value)} />
         <ColorControl label="Muted text" value={state.muted} onChange={(value) => update("muted", value)} />
-      </SectionCard>
+      </div>
+    </SectionCard>
       <SectionCard title="Active Item" subtitle="Highlighted/selected command item colors.">
+      <div className="space-y-4">
         <ColorControl label="Active background" value={state.itemActiveBg} onChange={(value) => update("itemActiveBg", value)} />
         <ColorControl label="Active text" value={state.itemActiveText} onChange={(value) => update("itemActiveText", value)} />
-      </SectionCard>
+      </div>
+    </SectionCard>
     </div>
   );
 }

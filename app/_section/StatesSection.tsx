@@ -8,7 +8,8 @@ import type { CommandPaletteState } from "../types";
 type Props = { state: CommandPaletteState; update: <K extends keyof CommandPaletteState>(key: K, value: CommandPaletteState[K]) => void };
 
 export default function StatesSection({ state, update }: Props) {
-  return <SectionCard title="State Preview" subtitle="State Preview controls for native command generation."><Select label="Preview state" value={state.previewState} options={[
+  return <SectionCard title="State Preview" subtitle="State Preview controls for native command generation.">
+      <div className="space-y-4"><Select label="Preview state" value={state.previewState} options={[
   "default",
   "hover",
   "focus",
@@ -21,5 +22,6 @@ export default function StatesSection({ state, update }: Props) {
   "error",
   "success"
 ]} onChange={(value) => update("previewState", value)} />
-<Switch label="Empty state" checked={state.emptyState} onChange={(value) => update("emptyState", value)} /></SectionCard>;
+<Switch label="Empty state" checked={state.emptyState} onChange={(value) => update("emptyState", value)} /></div>
+    </SectionCard>;
 }
