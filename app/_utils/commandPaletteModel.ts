@@ -61,8 +61,11 @@ function textValue(value: string | undefined, fallback: string) {
 
 export function getCommandPaletteModel(state: CommandPaletteState): CommandPaletteModel {
   const id = cleanId(state.id);
-  const totalOptions = state.emptyState || state.previewState === "empty" ? 0 : Math.max(0, Math.floor(state.itemCount));
-  const groupCount = Math.max(1, Math.min(Math.floor(state.groupCount), Math.max(totalOptions, 1)));
+  const rawTotal = state.emptyState || state.previewState === "empty" ? 0 : Math.max(0, Math.floor(state.itemCount));
+  const totalOptions = Math.min(rawTotal, Math.max(0, Math.floor(state.maxResults)) || rawTotal);
+  const groupCount = state.groupsEnabled
+    ? Math.max(1, Math.min(Math.floor(state.groupCount), Math.max(totalOptions, 1)))
+    : 1;
   const activeIndex = totalOptions ? Math.max(0, Math.min(Math.floor(state.highlightedIndex), totalOptions - 1)) : -1;
   const isLoading = state.previewState === "loading";
   const isError = state.previewState === "error";
@@ -81,7 +84,11 @@ export function getCommandPaletteModel(state: CommandPaletteState): CommandPalet
 
     return {
       id: `${id}-group-${groupIndex}`,
-      label: GROUP_LABELS[groupIndex % GROUP_LABELS.length],
+      label: !state.groupsEnabled
+        ? "All commands"
+        : state.recentEnabled && groupIndex === 0
+          ? "Recent"
+          : GROUP_LABELS[groupIndex % GROUP_LABELS.length],
       options,
     };
   }).filter((group) => group.options.length > 0);

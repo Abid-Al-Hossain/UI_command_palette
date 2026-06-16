@@ -71,7 +71,14 @@ export const DEFAULT_COMMANDPALETTE_STATE: CommandPaletteState = {
   "highlightedIndex": 1,
   "showShortcuts": true,
   "emptyState": false,
-  "openMode": "manual"
+  "openMode": "manual",
+  "maxResults": 8,
+  "keyboardShortcut": "Ctrl+K",
+  "searchDebounce": 150,
+  "recentEnabled": true,
+  "groupsEnabled": true,
+  "itemActiveBg": "#38bdf8",
+  "itemActiveText": "#0f172a"
 };
 
 export const COMMANDPALETTE_PRESETS: StudioPreset[] = [

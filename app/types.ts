@@ -78,6 +78,13 @@ export type CommandPaletteState = {
   showShortcuts: boolean;
   emptyState: boolean;
   openMode: "single" | "multiple" | "manual" | "controlled" | "uncontrolled";
+  maxResults: number;
+  keyboardShortcut: string;
+  searchDebounce: number;
+  recentEnabled: boolean;
+  groupsEnabled: boolean;
+  itemActiveBg: string;
+  itemActiveText: string;
 };
 
 export type StudioPreset = { id: string; family: string; archetype: string; variant: string; size: string; tags: string[]; state: Partial<CommandPaletteState> & Record<string, unknown> };

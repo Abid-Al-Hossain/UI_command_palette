@@ -38,8 +38,11 @@ function textValue(value, fallback) {
 
 function getCommandPaletteModel(currentState) {
   const id = cleanId(currentState.id);
-  const totalOptions = currentState.emptyState || currentState.previewState === "empty" ? 0 : Math.max(0, Math.floor(currentState.itemCount));
-  const groupCount = Math.max(1, Math.min(Math.floor(currentState.groupCount), Math.max(totalOptions, 1)));
+  const rawTotal = currentState.emptyState || currentState.previewState === "empty" ? 0 : Math.max(0, Math.floor(currentState.itemCount));
+  const totalOptions = Math.min(rawTotal, Math.max(0, Math.floor(currentState.maxResults)) || rawTotal);
+  const groupCount = currentState.groupsEnabled
+    ? Math.max(1, Math.min(Math.floor(currentState.groupCount), Math.max(totalOptions, 1)))
+    : 1;
   const activeIndex = totalOptions ? Math.max(0, Math.min(Math.floor(currentState.highlightedIndex), totalOptions - 1)) : -1;
   const isLoading = currentState.previewState === "loading";
   const isError = currentState.previewState === "error";
@@ -58,7 +61,11 @@ function getCommandPaletteModel(currentState) {
 
     return {
       id: id + "-group-" + groupIndex,
-      label: GROUP_LABELS[groupIndex % GROUP_LABELS.length],
+      label: !currentState.groupsEnabled
+        ? "All commands"
+        : currentState.recentEnabled && groupIndex === 0
+          ? "Recent"
+          : GROUP_LABELS[groupIndex % GROUP_LABELS.length],
       options,
     };
   }).filter((group) => group.options.length > 0);
@@ -111,8 +118,16 @@ export default function CommandPaletteComponent() {
   const [isOpen, setIsOpen] = React.useState(model.isInitiallyOpen);
   const [activeIndex, setActiveIndex] = React.useState(model.activeIndex);
   const [query, setQuery] = React.useState(model.query);
+  const [isSearching, setIsSearching] = React.useState(false);
   const activeDescendant = isOpen && activeIndex >= 0 ? model.baseId + "-option-" + activeIndex : undefined;
   const describedBy = model.isError ? model.helperId + " " + model.errorId : model.helperId;
+
+  React.useEffect(() => {
+    if (state.searchDebounce <= 0) return;
+    setIsSearching(true);
+    const timer = setTimeout(() => setIsSearching(false), state.searchDebounce);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const moveActive = (delta) => {
     if (!model.totalOptions) return;
@@ -158,10 +173,17 @@ export default function CommandPaletteComponent() {
 
         <label htmlFor={model.inputId} style={{ display: "grid", gap: 8, fontSize: 14, fontWeight: 700 }}>
           <span>{model.inputLabel}</span>
-          <input id={model.inputId} role="combobox" type="search" disabled={state.disabled} value={query} placeholder={model.placeholder} aria-expanded={isOpen} aria-controls={model.listboxId} aria-activedescendant={activeDescendant} aria-autocomplete="list" aria-describedby={describedBy} onFocus={() => setIsOpen(true)} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleInputKeyDown} style={{ borderRadius: 18, border: "1px solid " + (state.previewState === "focus" ? state.accent : state.border), padding: "12px 16px", outline: "none", background: "rgba(255,255,255,.06)", color: state.foreground }} />
+          <div style={{ position: "relative" }}>
+            <input id={model.inputId} role="combobox" type="search" disabled={state.disabled} value={query} placeholder={model.placeholder} aria-expanded={isOpen} aria-controls={model.listboxId} aria-activedescendant={activeDescendant} aria-autocomplete="list" aria-describedby={describedBy} onFocus={() => setIsOpen(true)} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleInputKeyDown} style={{ width: "100%", borderRadius: 18, border: "1px solid " + (state.previewState === "focus" ? state.accent : state.border), padding: "12px 64px 12px 16px", outline: "none", background: "rgba(255,255,255,.06)", color: state.foreground }} />
+            {state.keyboardShortcut && (
+              <kbd style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", border: "1px solid " + state.border, borderRadius: 8, padding: "4px 8px", color: state.muted, fontSize: 12 }}>
+                {state.keyboardShortcut}
+              </kbd>
+            )}
+          </div>
         </label>
 
-        <p id={model.helperId} style={{ margin: 0, color: state.muted, fontSize: 12 }}>{state.helper} - {model.resultLabel}</p>
+        <p id={model.helperId} style={{ margin: 0, color: state.muted, fontSize: 12 }}>{state.helper} - {isSearching ? "Searching..." : model.resultLabel}</p>
         {model.isError && <p id={model.errorId} role="alert" style={{ margin: 0, border: "1px solid " + state.border, borderRadius: 18, padding: "12px 16px", color: state.accent }}>{model.errorMessage}</p>}
 
         {isOpen && (
@@ -176,12 +198,12 @@ export default function CommandPaletteComponent() {
                   const selected = optionIndex === activeIndex || state.previewState === "selected";
 
                   return (
-                    <div key={option.id} id={option.id} role="option" aria-selected={selected} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid " + (selected ? state.accent : "transparent"), borderRadius: 18, padding: "12px 16px", background: selected ? "rgba(255,255,255,.1)" : "transparent", transition: state.transitionDuration > 0 ? "all " + state.transitionDuration + "ms " + state.transitionEasing : "none" }}>
+                    <div key={option.id} id={option.id} role="option" aria-selected={selected} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, border: "1px solid " + (selected ? state.accent : "transparent"), borderRadius: 18, padding: "12px 16px", background: selected ? state.itemActiveBg : "transparent", color: selected ? state.itemActiveText : undefined, transition: state.transitionDuration > 0 ? "all " + state.transitionDuration + "ms " + state.transitionEasing : "none" }}>
                       <span>
                         <strong>{option.label}</strong>
-                        <small style={{ display: "block", color: state.muted }}>{option.helper}</small>
+                        <small style={{ display: "block", color: selected ? state.itemActiveText : state.muted }}>{option.helper}</small>
                       </span>
-                      {state.showShortcuts && <kbd style={{ border: "1px solid " + state.border, borderRadius: 8, padding: "4px 8px", color: state.muted, fontSize: 12 }}>{option.shortcut}</kbd>}
+                      {state.showShortcuts && <kbd style={{ border: "1px solid " + state.border, borderRadius: 8, padding: "4px 8px", color: selected ? state.itemActiveText : state.muted, fontSize: 12 }}>{option.shortcut}</kbd>}
                     </div>
                   );
                 })}
