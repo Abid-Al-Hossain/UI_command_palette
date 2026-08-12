@@ -46,31 +46,59 @@ function shell(state: CommandPaletteState): CSSProperties {
 }
 
 export default function LivePreview({ state }: { state: CommandPaletteState }) {
-  const model = getCommandPaletteModel(state);
-  const [isOpen, setIsOpen] = useState(model.isInitiallyOpen);
-  const [activeIndex, setActiveIndex] = useState(model.activeIndex);
-  const [query, setQuery] = useState(model.query);
-  const [isSearching, setIsSearching] = useState(false);
+  const initialModel = getCommandPaletteModel(state);
+  const [isOpen, setIsOpen] = useState(initialModel.isInitiallyOpen);
+  const [activeIndex, setActiveIndex] = useState(initialModel.activeIndex);
+  const [query, setQuery] = useState(initialModel.query);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialModel.query);
+  const [announcement, setAnnouncement] = useState("");
+  const model = getCommandPaletteModel(state, debouncedQuery);
+  const visibleOptions = model.groups.flatMap((group) => group.options);
+  const resolvedActiveIndex = visibleOptions.some(
+    (option) => option.index === activeIndex,
+  )
+    ? activeIndex
+    : model.activeIndex;
+  const isSearching = query !== debouncedQuery;
 
   useEffect(() => {
-    setIsOpen(model.isInitiallyOpen);
-    setActiveIndex(model.activeIndex);
-    setQuery(model.query);
-  }, [model.activeIndex, model.isInitiallyOpen, model.query, state.id, state.itemCount, state.groupCount]);
-
-  useEffect(() => {
-    if (state.searchDebounce <= 0) return;
-    setIsSearching(true);
-    const timer = setTimeout(() => setIsSearching(false), state.searchDebounce);
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, Math.max(0, state.searchDebounce));
     return () => clearTimeout(timer);
   }, [query, state.searchDebounce]);
 
-  const activeDescendant = isOpen && activeIndex >= 0 ? `${model.baseId}-option-${activeIndex}` : undefined;
+  useEffect(() => {
+    if (!state.keyboardShortcut.toLocaleLowerCase().replaceAll(" ", "").endsWith("+k")) return;
+    const openFromShortcut = (event: globalThis.KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === "k") {
+        event.preventDefault();
+        setIsOpen(true);
+      }
+    };
+    document.addEventListener("keydown", openFromShortcut);
+    return () => document.removeEventListener("keydown", openFromShortcut);
+  }, [state.keyboardShortcut]);
+
+  const activeDescendant =
+    isOpen && resolvedActiveIndex >= 0
+      ? `${model.baseId}-option-${resolvedActiveIndex}`
+      : undefined;
   const describedBy = model.isError ? `${model.helperId} ${model.errorId}` : model.helperId;
 
   const moveActive = (delta: number) => {
-    if (!model.totalOptions) return;
-    setActiveIndex((current) => (current + delta + model.totalOptions) % model.totalOptions);
+    if (!visibleOptions.length) return;
+    setActiveIndex((current) => {
+      const position = visibleOptions.findIndex((option) => option.index === current);
+      return visibleOptions[(Math.max(position, 0) + delta + visibleOptions.length) % visibleOptions.length].index;
+    });
+  };
+
+  const executeOption = (optionIndex: number) => {
+    const option = visibleOptions.find((candidate) => candidate.index === optionIndex);
+    if (!option) return;
+    setAnnouncement(`${option.label} executed.`);
+    setIsOpen(false);
   };
 
   const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -86,9 +114,9 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
       moveActive(-1);
     }
 
-    if (event.key === "Enter" && isOpen && activeIndex >= 0) {
+    if (event.key === "Enter" && isOpen && resolvedActiveIndex >= 0) {
       event.preventDefault();
-      setIsOpen(false);
+      executeOption(resolvedActiveIndex);
     }
 
     if (event.key === "Escape") {
@@ -106,7 +134,7 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
             <p className="mt-1" style={{ color: state.muted, fontSize: state.bodySize }}>{state.description}</p>
           </div>
           <button id={model.triggerId} type="button" disabled={state.disabled} aria-label={isOpen ? "Close command palette" : "Open command palette"} aria-expanded={isOpen} aria-controls={model.listboxId} onClick={() => setIsOpen((value) => !value)} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: state.border, color: state.accent, transition: state.transitionDuration > 0 ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
-            {isOpen ? "Open" : "Closed"}
+            {isOpen ? "Close" : "Open"}
           </button>
         </div>
 
@@ -133,11 +161,10 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
               <div key={group.id} role="group" aria-label={group.label} className="grid gap-2">
                 <p className="px-2 text-xs uppercase tracking-[0.18em]" style={{ color: state.muted }}>{group.label}</p>
                 {group.options.map((option) => {
-                  const optionIndex = Number(option.id.split("-").at(-1));
-                  const selected = optionIndex === activeIndex || state.previewState === "selected";
+                  const selected = option.index === resolvedActiveIndex;
 
                   return (
-                    <div key={option.id} id={option.id} role="option" aria-selected={selected} className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: selected ? state.accent : "transparent", background: selected ? state.itemActiveBg : "transparent", color: selected ? state.itemActiveText : undefined, transition: state.transitionDuration > 0 ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
+                    <div key={option.id} id={option.id} role="option" aria-selected={selected} onMouseDown={(event) => event.preventDefault()} onMouseMove={() => setActiveIndex(option.index)} onClick={() => executeOption(option.index)} className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: selected ? state.accent : "transparent", background: selected ? state.itemActiveBg : "transparent", color: selected ? state.itemActiveText : undefined, transition: state.transitionDuration > 0 ? "background 0.15s ease, border-color 0.15s ease" : "none" }}>
                       <span>
                         <strong>{option.label}</strong>
                         <small className="block" style={{ color: selected ? state.itemActiveText : state.muted }}>{option.helper}</small>
@@ -150,6 +177,7 @@ export default function LivePreview({ state }: { state: CommandPaletteState }) {
             ))}
           </div>
         )}
+        <p className="sr-only" aria-live="polite">{announcement}</p>
       </section>
     </div>
   );

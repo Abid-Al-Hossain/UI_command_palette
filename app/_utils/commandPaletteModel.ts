@@ -2,6 +2,7 @@ import type { CommandPaletteState } from "../types";
 
 export type CommandOption = {
   id: string;
+  index: number;
   label: string;
   helper: string;
   shortcut: string;
@@ -59,39 +60,49 @@ function textValue(value: string | undefined, fallback: string) {
   return value && value.trim() ? value : fallback;
 }
 
-export function getCommandPaletteModel(state: CommandPaletteState): CommandPaletteModel {
+export function getCommandPaletteModel(state: CommandPaletteState, queryOverride?: string): CommandPaletteModel {
   const id = cleanId(state.id);
   const rawTotal = state.emptyState || state.previewState === "empty" ? 0 : Math.max(0, Math.floor(state.itemCount));
-  const totalOptions = Math.min(rawTotal, Math.max(0, Math.floor(state.maxResults)) || rawTotal);
+  const sourceTotal = Math.min(rawTotal, Math.max(0, Math.floor(state.maxResults)) || rawTotal);
   const groupCount = state.groupsEnabled
-    ? Math.max(1, Math.min(Math.floor(state.groupCount), Math.max(totalOptions, 1)))
+    ? Math.max(1, Math.min(Math.floor(state.groupCount), Math.max(sourceTotal, 1)))
     : 1;
-  const activeIndex = totalOptions ? Math.max(0, Math.min(Math.floor(state.highlightedIndex), totalOptions - 1)) : -1;
   const isLoading = state.previewState === "loading";
   const isError = state.previewState === "error";
-  const isEmpty = totalOptions === 0;
   const isInitiallyOpen = state.previewState !== "closed";
   const label = textValue(state.label, "Command");
+  const query = queryOverride ?? state.query ?? "";
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   const groups = Array.from({ length: groupCount }, (_, groupIndex) => {
-    const options = Array.from({ length: totalOptions }, (_, index) => index)
+    const groupLabel = !state.groupsEnabled
+      ? "All commands"
+      : state.recentEnabled && groupIndex === 0
+        ? "Recent"
+        : GROUP_LABELS[groupIndex % GROUP_LABELS.length];
+    const options = Array.from({ length: sourceTotal }, (_, index) => index)
       .filter((index) => index % groupCount === groupIndex)
       .map((index) => ({
         id: `${id}-option-${index}`,
+        index,
         label: `${label} ${index + 1}`,
         helper: COMMAND_HELPERS[index % COMMAND_HELPERS.length],
         shortcut: SHORTCUTS[index % SHORTCUTS.length],
-      }));
+      }))
+      .filter((option) => !normalizedQuery || [option.label, option.helper, option.shortcut, groupLabel].some((value) => value.toLocaleLowerCase().includes(normalizedQuery)));
 
     return {
       id: `${id}-group-${groupIndex}`,
-      label: !state.groupsEnabled
-        ? "All commands"
-        : state.recentEnabled && groupIndex === 0
-          ? "Recent"
-          : GROUP_LABELS[groupIndex % GROUP_LABELS.length],
+      label: groupLabel,
       options,
     };
   }).filter((group) => group.options.length > 0);
+  const visibleOptions = groups.flatMap((group) => group.options);
+  const totalOptions = visibleOptions.length;
+  const preferredIndex = Math.max(0, Math.min(Math.floor(state.highlightedIndex), Math.max(sourceTotal - 1, 0)));
+  const activeIndex = totalOptions
+    ? (visibleOptions.some((option) => option.index === preferredIndex) ? preferredIndex : visibleOptions[0].index)
+    : -1;
+  const isEmpty = totalOptions === 0;
 
   return {
     baseId: id,
@@ -103,7 +114,7 @@ export function getCommandPaletteModel(state: CommandPaletteState): CommandPalet
     triggerId: `${id}-trigger`,
     inputLabel: textValue(state.inputLabel, "Search commands"),
     placeholder: textValue(state.placeholder, "Type a command or search route..."),
-    query: state.query ?? "",
+    query,
     emptyMessage: textValue(state.emptyMessage, "No commands match the current search."),
     loadingMessage: textValue(state.loadingMessage, "Loading command results..."),
     errorMessage: textValue(state.errorMessage, "Commands could not be loaded."),

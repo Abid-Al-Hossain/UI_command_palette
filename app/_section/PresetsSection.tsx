@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Input from "@/components/shared/input/Input";
 import Select from "@/components/shared/input/Select";
 import { SectionCard } from "@/components/shared/layout/SectionCard";
@@ -23,12 +23,7 @@ export default function PresetsSection({ activePresetId, onApply }: { activePres
   const hasFilters = query.trim() !== "" || family !== "all" || size !== "all";
   const resultCopy = `${filtered.length} of ${COMMANDPALETTE_PRESETS.length} presets`;
   const source = filtered.length ? filtered : COMMANDPALETTE_PRESETS;
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [family, query, size]);
-
-  const resetFilters = () => {
+const resetFilters = () => {
     setQuery("");
     setFamily("all");
     setSize("all");
@@ -38,9 +33,9 @@ export default function PresetsSection({ activePresetId, onApply }: { activePres
   return (
     <SectionCard title="Presets" subtitle="48 structured full-state presets.">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Input label="Search presets" value={query} onChange={setQuery} data-filter="query" />
-        <Select label="Family" value={family} options={families} onChange={setFamily} />
-        <Select label="Size" value={size} options={sizes} onChange={setSize} />
+        <Input label="Search presets" value={query} onChange={(value) => { setQuery(value); setCurrentPage(1); }} data-filter="query" />
+        <Select label="Family" value={family} options={families} onChange={(value) => { setFamily(value); setCurrentPage(1); }} />
+        <Select label="Size" value={size} options={sizes} onChange={(value) => { setSize(value); setCurrentPage(1); }} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-3 text-sm" style={{ borderColor: "var(--border)", color: "var(--muted)" }}>
